@@ -2,7 +2,7 @@
 """GitHub Actions: llama al 5350321300 y fuerza DataChannel en OFFER."""
 import os, re, ssl, base64, hashlib, socket, threading, time, uuid, json, asyncio, logging, fractions
 import requests, urllib3
-from aiortc import RTCPeerConnection, RTCSessionDescription
+from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
 from aiortc.mediastreams import AudioStreamTrack, VideoStreamTrack
 from av import AudioFrame, VideoFrame
 
@@ -291,7 +291,25 @@ class Caller:
     async def _enviar_offer(self):
         try:
             log.info("*** Creando RTCPeerConnection + DataChannel")
-            self.pc = RTCPeerConnection()
+                        # Pedir TURN a ToDus antes de crear la PC
+            ice_servers = []
+            try:
+                from todus import ToDusClient2
+                # Reusar el mismo teléfono; el token no importa para request_turn
+                turn_client = ToDusClient2(phone_number=self.phone)
+                turn_resp = turn_client.request_turn_credentials()
+                log.info(f"*** TURN response: {turn_resp}")
+                # turn_resp suele ser un dict con urls, username, credential
+                if isinstance(turn_resp, dict) and turn_resp.get("urls"):
+                    ice_servers.append(RTCIceServer(
+                        urls=turn_resp["urls"],
+                        username=turn_resp.get("username"),
+                        credential=turn_resp.get("credential"),
+                    ))
+                    log.info(f"*** TURN añadido: {turn_resp['urls']}")
+            except Exception as e:
+                log.warning(f"*** No se pudo obtener TURN: {e}")
+            self.pc = RTCPeerConnection(configuration=RTCConfiguration(iceServers=ice_servers))
 
             @self.pc.on("icecandidate")
             async def on_ice(candidate):
@@ -362,7 +380,8 @@ class Caller:
             "type": 32,
         })
 
-        # OFFER al full JID del peer + from explícito
+
+        # OFFER al full JID del peer (con resource)
         iq_id = uuid.uuid4().hex
         self.send(
             f'<iq type="set" id="{iq_id}" to="{self.peer_jid}" from="{self.full_jid}">'
@@ -403,7 +422,8 @@ class Caller:
             "type": 32,
         })
 
-        # ICE al full JID del peer + from explícito
+
+        # ICE al full JID del peer (con resource)
         iq_id = uuid.uuid4().hex
         self.send(
             f'<iq type="set" id="{iq_id}" to="{self.peer_jid}" from="{self.full_jid}">'
