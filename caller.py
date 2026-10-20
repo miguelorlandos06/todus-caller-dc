@@ -361,9 +361,11 @@ class Caller:
             "userId": self.phone + "@im.todus.cu",
             "type": 32,
         })
+
+        # OFFER al full JID del peer + from explícito
         iq_id = uuid.uuid4().hex
         self.send(
-            f'<iq type="set" id="{iq_id}" to="{self.peer_jid}">'
+            f'<iq type="set" id="{iq_id}" to="{self.peer_jid}" from="{self.full_jid}">'
             f'<query xmlns="todus:call:status" '
             f'to_user="{self.peer_jid}" from_user="{self.full_jid}" '
             f'status="OFFER" content="{b64(content)}"/>'
@@ -400,9 +402,11 @@ class Caller:
             "userId": self.phone + "@im.todus.cu",
             "type": 32,
         })
+
+        # ICE al full JID del peer + from explícito
         iq_id = uuid.uuid4().hex
         self.send(
-            f'<iq type="set" id="{iq_id}" to="{self.peer_jid}">'
+            f'<iq type="set" id="{iq_id}" to="{self.peer_jid}" from="{self.full_jid}">'
             f'<query xmlns="todus:call:status" '
             f'to_user="{self.peer_jid}" from_user="{self.full_jid}" '
             f'status="ICE" content="{b64(content)}"/>'
