@@ -134,7 +134,7 @@ class Caller:
         log.info(f"LOGIN {self.phone}")
         self.jwt = login(self.phone)
         log.info(f"JWT OK")
-        resource = hashlib.md5(self.phone.encode()).hexdigest() + "_Android"
+        resource = hashlib.md5(self.phone.encode()).hexdigest() + "_caller_" + uuid.uuid4().hex[:8]
         ctx = ssl.create_default_context()
         ctx.check_hostname = False; ctx.verify_mode = ssl.CERT_NONE
         raw = socket.create_connection((XMPP_HOST, XMPP_PORT), timeout=30)
@@ -249,6 +249,22 @@ class Caller:
         q = re.search(r"status=['\"]([^'\"]+)['\"]", stanza)
         if not q: return
         status = q.group(1)
+
+        if status == "CHECKING_REQUEST":
+            to_m = re.search(r"from_user=['\"]([^'\"]+)['\"]", stanza)
+            from_m = re.search(r"to_user=['\"]([^'\"]+)['\"]", stanza)
+            to_user = to_m.group(1) if to_m else "?"
+            from_user = from_m.group(1) if from_m else "?"
+            log.info(f"*** CHECKING_REQUEST: from={from_user} to={to_user}")
+            iq_id = uuid.uuid4().hex
+            self.send(
+                f'<iq type="set" id="{iq_id}" to="{to_user}">'
+                f'<query xmlns="todus:call:status" '
+                f'to_user="{to_user}" from_user="{from_user}" '
+                f'status="CHECKING_RESPONSE" content=""/>'
+                f'</iq>', "CHECKING_RESPONSE"
+            )
+            return
         cm = re.search(r"content=['\"]([^'\"]+)['\"]", stanza)
         content_b64 = cm.group(1) if cm else ""
         content_json = decode_b64(content_b64)
